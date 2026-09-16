@@ -14,4 +14,16 @@ cc="${CC:-gcc}"
     "$root/test/host/test_ryuw122_parse.c" \
     -o "$out/test_ryuw122_parse"
 
+if python3 -c "import kconfiglib" 2>/dev/null; then
+    python3 "$root/test/host/check_kconfig.py"
+else
+    echo "skip - Kconfig check (run 'pip install kconfiglib' to enable)"
+fi
+
 "$out/test_ryuw122_parse"
+
+if python3 -c "import kconfiglib" 2>/dev/null; then
+    python3 "$root/test/host/check_kconfig.py"
+else
+    echo "skip - Kconfig check (run 'pip install kconfiglib' to enable)"
+fi
