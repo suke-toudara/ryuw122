@@ -1,0 +1,144 @@
+menu "RYUW122 UWB firmware"
+
+    choice RYUW122_ROLE
+        prompt "Role of this node"
+        default RYUW122_ROLE_ANCHOR
+        help
+            An ANCHOR starts the ranging exchange and reports the distance.
+            A TAG answers the requests of the anchors of the same network.
+
+        config RYUW122_ROLE_ANCHOR
+            bool "ANCHOR (measures the distance to a tag)"
+        config RYUW122_ROLE_TAG
+            bool "TAG (answers anchor requests)"
+    endchoice
+
+    menu "Wiring"
+        config RYUW122_UART_PORT
+            int "UART port used for the module"
+            default 1
+            range 1 1
+            help
+                UART0 is the console on most ESP32-C6 boards, so UART1 is used
+                for the module.
+
+        config RYUW122_UART_TX_GPIO
+            int "ESP32 TX GPIO (module RX pin)"
+            default 10
+
+        config RYUW122_UART_RX_GPIO
+            int "ESP32 RX GPIO (module TX pin)"
+            default 11
+
+        config RYUW122_RST_GPIO
+            int "ESP32 GPIO driving the module NRST pin (-1 if not wired)"
+            default 18
+            help
+                Strongly recommended: without a hardware reset the module can
+                come up in an unknown state after a firmware download.
+
+        config RYUW122_UART_BAUD
+            int "UART baud rate of the module"
+            default 115200
+            help
+                Factory default is 115200. The module also supports 9600 and
+                57600 (see AT+IPR).
+    endmenu
+
+    menu "Network"
+        config RYUW122_NETWORK_ID
+            string "Network id (exactly 8 ASCII characters)"
+            default "REYAX123"
+
+        config RYUW122_LOCAL_ADDRESS
+            string "Address of this node (exactly 8 ASCII characters)"
+            default "ANCHOR01"
+
+        config RYUW122_PEER_TAG_ADDRESS
+            string "Address of the tag to range against (anchor role only)"
+            default "TAGT0001"
+            depends on RYUW122_ROLE_ANCHOR
+
+        config RYUW122_USE_PASSWORD
+            bool "Enable AES128 encryption (AT+CPIN)"
+            default n
+
+        config RYUW122_PASSWORD
+            string "AES128 password, exactly 32 hex characters"
+            default "00112233445566778899AABBCCDDEEFF"
+            depends on RYUW122_USE_PASSWORD
+    endmenu
+
+    menu "Radio"
+        choice RYUW122_CHANNEL
+            prompt "UWB channel"
+            default RYUW122_CHANNEL_5
+            config RYUW122_CHANNEL_5
+                bool "Channel 5 (6489.6 MHz)"
+            config RYUW122_CHANNEL_9
+                bool "Channel 9 (7987.2 MHz)"
+        endchoice
+
+        choice RYUW122_BANDWIDTH
+            prompt "Over the air data rate"
+            default RYUW122_BANDWIDTH_850K
+            config RYUW122_BANDWIDTH_850K
+                bool "850 kbps (longer range)"
+            config RYUW122_BANDWIDTH_6M8
+                bool "6.8 Mbps (shorter exchange)"
+        endchoice
+
+        config RYUW122_RF_POWER
+            int "RF output power index (0 = -65 dBm ... 5 = -32 dBm)"
+            range 0 5
+            default 5
+
+        config RYUW122_RSSI_REPORT
+            bool "Append the RSSI field to the received reports"
+            default y
+
+        config RYUW122_SET_CALIBRATION
+            bool "Apply a distance calibration offset (AT+CAL)"
+            default n
+
+        config RYUW122_CALIBRATION
+            int "Distance calibration value"
+            default 0
+            depends on RYUW122_SET_CALIBRATION
+    endmenu
+
+    menu "Behaviour"
+        config RYUW122_RANGING_INTERVAL_MS
+            int "Delay between two ranging exchanges, ms (anchor role)"
+            default 500
+            range 20 60000
+            depends on RYUW122_ROLE_ANCHOR
+
+        config RYUW122_RANGING_TIMEOUT_MS
+            int "How long to wait for the tag answer, ms (anchor role)"
+            default 1000
+            range 100 10000
+            depends on RYUW122_ROLE_ANCHOR
+
+        config RYUW122_TAG_DUTY_CYCLE
+            bool "Configure the tag RF duty cycle (AT+TAGD)"
+            default n
+            depends on RYUW122_ROLE_TAG
+            help
+                Lowers the average current of a battery powered tag at the cost
+                of a longer time to first fix.
+
+        config RYUW122_TAG_DUTY_ON_MS
+            int "RF on time, ms (10..28000)"
+            default 100
+            range 10 28000
+            depends on RYUW122_TAG_DUTY_CYCLE
+
+        config RYUW122_TAG_DUTY_OFF_MS
+            int "RF off time, ms (10..28000)"
+            default 100
+            range 10 28000
+            depends on RYUW122_TAG_DUTY_CYCLE
+    endmenu
+
+endmenu
