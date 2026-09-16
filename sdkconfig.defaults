@@ -1,13 +1,11 @@
-# Defaults for the RYUW122 UWB firmware.
-# Regenerate sdkconfig with: idf.py set-target esp32c6 && idf.py build
+# idf.py で直接ビルドする場合の既定値。
+# PlatformIO では env ごとに configs/anchor.defaults / configs/tag.defaults が
+# 使われます（platformio.ini の board_build.cmake_extra_args を参照）。
 
-CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
-# The ranging loop is timing sensitive; a 1 kHz tick keeps the millisecond
-# level delays used by the driver accurate.
+# 測距ループはミリ秒単位の待ちを使うので 1 kHz tick にしておく
 CONFIG_FREERTOS_HZ=1000
 
-# The module answers within a few tens of milliseconds, so a small UART FIFO
-# threshold keeps the round trip short.
+# UART 割り込みを IRAM に置いて取りこぼしを避ける
 CONFIG_UART_ISR_IN_IRAM=y

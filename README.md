@@ -1,13 +1,15 @@
 # ryuw122
 
-6.5GHz/8GHz帯UWB無線モジュール RYUW122 ファームウェア（ESP32-C6 / ESP-IDF）
+6.5GHz/8GHz帯UWB無線モジュール RYUW122 ファームウェア（ESP32-C6 / PlatformIO + ESP-IDF）
 
 REYAX RYUW122（秋月電子 通販コード 132078）を ESP32-C6 から UART の AT コマンドで
 制御し、ANCHOR - TAG 間の測距（Two Way Ranging）と最大 12 バイトのデータ交換を行う
 ファームウェアです。
 
+- `platformio.ini` … PlatformIO 設定（`anchor` / `tag` の 2 環境）
 - `components/ryuw122` … RYUW122 ドライバ（ESP-IDF コンポーネント）
 - `main/app_main.c` … ANCHOR / TAG のアプリケーション
+- `configs/*.defaults` … 各環境の Kconfig 初期値
 - `docs/AT_COMMANDS.md` … 使用している AT コマンドの一覧
 - `test/host` … PC 上で動かせるパーサの単体テストとコンパイルチェック
 
@@ -15,7 +17,13 @@ REYAX RYUW122（秋月電子 通販コード 132078）を ESP32-C6 から UART �
 
 - ESP32-C6 ボード（ESP32-C6-DevKitC-1 などを想定）× 2
 - RYUW122 モジュール × 2（ANCHOR 用・TAG 用）
-- ESP-IDF v5.1 以降（ESP32-C6 対応版）
+- PlatformIO Core 6.1.16 以降（VS Code 拡張でも可）
+
+platform には ESP32-C6 + ESP-IDF 5.x に対応した
+[pioarduino 版 platform-espressif32](https://github.com/pioarduino/platform-espressif32)
+を使用しています（PlatformIO 公式の `espressif32` は C6 + ESP-IDF に未対応）。
+ツールチェーンと ESP-IDF は初回ビルド時に自動で取得されるので、ESP-IDF を別途
+インストールする必要はありません。
 
 測距には必ず 2 台必要です。片方を ANCHOR、もう片方を TAG に設定してください。
 
@@ -34,32 +42,59 @@ RYUW122 は **3.3V 専用** です。5V を加えないでください。
 GPIO の選定理由: ESP32-C6 では GPIO4/5/8/9/15 がストラッピングピン、GPIO12/13 が
 USB-Serial/JTAG、GPIO16/17 が UART0（コンソール）、GPIO24〜30 が内蔵フラッシュに
 割り当てられているため、これらを避けて GPIO10 / 11 / 18 を既定値にしています。
-別のピンを使う場合は `idf.py menuconfig` → *RYUW122 UWB firmware* → *Wiring* で
-変更できます。
+別のピンを使う場合は `pio run -e anchor -t menuconfig` → *RYUW122 UWB firmware*
+→ *Wiring* で変更できます。
 
 NRST を接続しておくと、書き込み直後などにモジュールの状態が不定でも起動時に
 ハードウェアリセットして復帰できます（`ryuw122_hw_reset()`）。
 
 ## ビルドと書き込み
 
+役割ごとに PlatformIO の環境を分けてあります。`anchor` と `tag` をそれぞれ別の
+ボードに書き込んでください（測距には 2 台必要です）。
+
 ```bash
-idf.py set-target esp32c6
-idf.py menuconfig          # "RYUW122 UWB firmware" で役割とピンを設定
-idf.py build
-idf.py -p /dev/ttyACM0 flash monitor
+# 1 台目: ANCHOR
+pio run -e anchor -t upload
+
+# 2 台目: TAG
+pio run -e tag -t upload
+
+# ログを見る
+pio device monitor -b 115200
 ```
 
-### 1 台目（ANCHOR）
+設定（ピン配置、アドレス、チャネル、送信出力など）は menuconfig で変更できます。
 
-*Role of this node* → **ANCHOR**、*Address of this node* → `ANCHOR01`、
-*Address of the tag to range against* → `TAGT0001`
+```bash
+pio run -e anchor -t menuconfig    # → "RYUW122 UWB firmware" メニュー
+```
 
-### 2 台目（TAG）
+各環境の Kconfig 初期値は `configs/anchor.defaults` / `configs/tag.defaults` で、
+そこから `sdkconfig.anchor` / `sdkconfig.tag` が生成されます（生成物は git 管理外）。
+既定値を変えたいときは `configs/*.defaults` を編集してから
+`rm sdkconfig.anchor && pio run -e anchor` としてください。
 
-*Role of this node* → **TAG**、*Address of this node* → `TAGT0001`
+| 項目 | ANCHOR 既定値 | TAG 既定値 |
+| --- | --- | --- |
+| 役割 | ANCHOR | TAG |
+| 自局アドレス | `ANCHOR01` | `TAGT0001` |
+| 測距相手 | `TAGT0001` | － |
+| ネットワーク ID | `REYAX123` | `REYAX123` |
 
-**ネットワーク ID（既定 `REYAX123`）、チャネル、帯域、暗号鍵は 2 台で必ず一致させて
-ください。** 一致しないと測距要求に応答せず、ANCHOR 側はタイムアウトし続けます。
+**ネットワーク ID、チャネル、帯域、暗号鍵は 2 台で必ず一致させてください。**
+一致しないと測距要求に応答せず、ANCHOR 側はタイムアウトし続けます。
+
+### ESP-IDF 単体でビルドする場合
+
+`main/` を標準のまま使っているので、PlatformIO を使わずに `idf.py`（v5.1 以降）で
+ビルドすることもできます。この場合の Kconfig 初期値は `sdkconfig.defaults` です。
+
+```bash
+idf.py set-target esp32c6
+idf.py menuconfig     # 役割を ANCHOR / TAG で切り替える
+idf.py build flash monitor
+```
 
 ### 実行例（ANCHOR 側のログ）
 
@@ -108,8 +143,8 @@ if (ryuw122_anchor_range(dev, "TAGT0001", "PING", 4, &result, 1000) == ESP_OK) {
 
 ## テスト
 
-ESP-IDF が無い環境でも、プロトコル解析部分の単体テストとコンパイルチェックを
-実行できます。
+ツールチェーンを取得しなくても、プロトコル解析部分の単体テストとコンパイル
+チェックだけを PC 上で実行できます。
 
 ```bash
 ./test/host/run_tests.sh          # パーサの単体テスト（ASan/UBSan 付き）

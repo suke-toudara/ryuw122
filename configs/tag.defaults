@@ -1,0 +1,11 @@
+# TAG 機の初期設定 (PlatformIO env:tag が sdkconfig.tag を生成する種)
+# 共通設定は sdkconfig.defaults と内容を合わせてあります。
+
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_UART_ISR_IN_IRAM=y
+
+# 役割
+CONFIG_RYUW122_ROLE_TAG=y
+CONFIG_RYUW122_LOCAL_ADDRESS="TAGT0001"
+CONFIG_RYUW122_NETWORK_ID="REYAX123"
