@@ -147,16 +147,24 @@ if (ryuw122_anchor_range(dev, "TAGT0001", "PING", 4, &result, 1000) == ESP_OK) {
 チェックだけを PC 上で実行できます。
 
 ```bash
-./test/host/run_tests.sh          # パーサの単体テスト（ASan/UBSan 付き）
+./test/host/run_tests.sh          # パーサの単体テスト（ASan/UBSan 付き）+ Kconfig 検証
 ./test/host/run_compile_check.sh  # スタブヘッダでドライバ・アプリをコンパイル
 ```
 
+`run_tests.sh` は `kconfiglib`（`pip install kconfiglib`）があれば
+`main/Kconfig.projbuild` の構文と `configs/*.defaults` の内容（役割が 1 つだけ
+選ばれているか、存在しない CONFIG キーを書いていないか）も検証します。
+
 ## 検証状況
 
-- パーサ（`ryuw122_parse.c`）は上記の単体テストで検証済み。ペイロードに `,` が
+- パーサ（`ryuw122_parse.c`）は単体テストで検証済み。ペイロードに `,` が
   含まれる場合や RSSI 無効時（`AT+RSSI=0`）の書式も含みます。
+- `main/Kconfig.projbuild` と `configs/*.defaults` は `test/host/check_kconfig.py`
+  で検証済み（役割の排他選択、`app_main.c` が参照する CONFIG キーの実在確認）。
 - ドライバとアプリはスタブヘッダでのコンパイルまで確認しています。
-  **実機（ESP32-C6 + RYUW122）での動作確認は未実施です。**
+- `platformio.ini` は `pio project config` で `anchor` / `tag` 両 env の解決を確認
+  済みですが、**`pio run` による実ビルドと実機動作の確認は未実施です**
+  （作成環境から Espressif のツールチェーン配布サイトへ到達できなかったため）。
 - AT コマンドの書式は RYUW122 のデータシート（AT command set）に基づいています。
   既定値（ネットワーク ID、`AT+CAL` の既定値など）は個体・ファームウェア版により
   異なることがあるため、最初に `AT+VER?` と各 `?` 問い合わせで実機の値を確認する
